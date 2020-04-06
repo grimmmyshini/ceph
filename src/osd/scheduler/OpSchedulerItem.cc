@@ -27,7 +27,9 @@ void PGOpItem::run(
   PGRef& pg,
   ThreadPool::TPHandle &handle)
 {
+#ifdef WITH_JAEGER	
   jspan parent_span = JTracer::tracedFunction("op dequeued");
+#endif  
   osd->dequeue_op(pg, op, handle);
   pg->unlock();
 }
