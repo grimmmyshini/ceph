@@ -22,6 +22,7 @@ extern "C" {
 #include "common/Formatter.h"
 #include "common/errno.h"
 #include "common/safe_io.h"
+#include "common/tracer.h"
 
 #include "include/util.h"
 
@@ -1202,8 +1203,18 @@ public:
 };
 
 static int init_bucket(const string& tenant_name, const string& bucket_name, const string& bucket_id,
-                       RGWBucketInfo& bucket_info, rgw_bucket& bucket, map<string, bufferlist> *pattrs = nullptr)
+                       RGWBucketInfo& bucket_info, rgw_bucket& bucket, map<string, bufferlist> *pattrs = nullptr, const jspan& parentSpan = NULL)
 {
+  
+#ifdef WITH_JAEGER
+  if(!parentSpan){
+    auto span = opentracing::Tracer::Global()->StartSpan("RGW_ADMIN : initialize bucket");
+  }
+  else{
+    auto span = opentracing::Tracer::Global()->StartSpan("RGW_ADMIN : initialize bucket", { opentracing::ChildOf(&parentSpan->context()) });
+  }
+#endif
+
   if (!bucket_name.empty()) {
     auto obj_ctx = store->svc()->sysobj->init_obj_ctx();
     int r;
@@ -2696,7 +2707,14 @@ const string& get_tier_type(rgw::sal::RGWRadosStore *store) {
 }
 
 int main(int argc, const char **argv)
-{
+{ 
+
+  jspan span = NULL;
+#ifdef WITH_JAEGER
+  JTracer::setUpTracer("RGW-admin");
+  span = opentracing::Tracer::Global()->StartSpan("RGW_ADMIN : main");  
+#endif
+  
   vector<const char*> args;
   argv_to_vec(argc, (const char **)argv, args);
   if (args.empty()) {
@@ -5478,10 +5496,10 @@ int main(int argc, const char **argv)
           return -ENOENT;
         }
       }
-      RGWBucketAdminOp::info(store, bucket_op, f);
+      RGWBucketAdminOp::info(store, bucket_op, f, span);
     } else {
       RGWBucketInfo bucket_info;
-      int ret = init_bucket(tenant, bucket_name, bucket_id, bucket_info, bucket);
+      int ret = init_bucket(tenant, bucket_name, bucket_id, bucket_info, bucket, nullptr, span);
       if (ret < 0) {
         cerr << "ERROR: could not init bucket: " << cpp_strerror(-ret) << std::endl;
         return -ret;
@@ -5533,7 +5551,7 @@ int main(int argc, const char **argv)
   if (opt_cmd == OPT_BUCKET_STATS) {
     bucket_op.set_fetch_stats(true);
 
-    int r = RGWBucketAdminOp::info(store, bucket_op, f);
+    int r = RGWBucketAdminOp::info(store, bucket_op, f, span);
     if (r < 0) {
       cerr << "failure: " << cpp_strerror(-r) << ": " << err << std::endl;
       return -r;

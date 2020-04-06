@@ -17,6 +17,7 @@
 #include "common/Formatter.h"
 #include "common/lru_map.h"
 #include "common/ceph_time.h"
+#include "common/tracer.h"
 
 #include "rgw_formats.h"
 
@@ -385,7 +386,7 @@ public:
 
   static int remove_bucket(rgw::sal::RGWRadosStore *store, RGWBucketAdminOpState& op_state, optional_yield y, bool bypass_gc = false, bool keep_index_consistent = true);
   static int remove_object(rgw::sal::RGWRadosStore *store, RGWBucketAdminOpState& op_state);
-  static int info(rgw::sal::RGWRadosStore *store, RGWBucketAdminOpState& op_state, RGWFormatterFlusher& flusher);
+  static int info(rgw::sal::RGWRadosStore *store, RGWBucketAdminOpState& op_state, RGWFormatterFlusher& flusher, const jspan& parentSpan = NULL);
   static int limit_check(rgw::sal::RGWRadosStore *store, RGWBucketAdminOpState& op_state,
 			 const std::list<std::string>& user_ids,
 			 RGWFormatterFlusher& flusher,

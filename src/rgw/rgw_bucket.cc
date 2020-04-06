@@ -12,6 +12,7 @@
 
 #include "common/errno.h"
 #include "common/ceph_json.h"
+#include "common/tracer.h"
 #include "include/scope_guard.h"
 
 #include "rgw_rados.h"
@@ -1532,13 +1533,21 @@ int RGWBucketAdminOp::limit_check(RGWRadosStore *store,
 } /* RGWBucketAdminOp::limit_check */
 
 int RGWBucketAdminOp::info(RGWRadosStore *store, RGWBucketAdminOpState& op_state,
-                  RGWFormatterFlusher& flusher)
+                  RGWFormatterFlusher& flusher, const jspan& parentSpan)
 {
   int ret = 0;
   string bucket_name = op_state.get_bucket_name();
   Formatter *formatter = flusher.get_formatter();
   flusher.start(0);
 
+#ifdef WITH_JAEGER
+  if(!parentSpan){
+    auto span = opentracing::Tracer::Global()->StartSpan("RGW_BUCKET : info bucket");
+  }
+  else{
+    auto span = opentracing::Tracer::Global()->StartSpan("RGW_BUCKET : info bucket", { opentracing::ChildOf(&parentSpan->context()) });
+  }
+#endif  
   CephContext *cct = store->ctx();
 
   const size_t max_entries = cct->_conf->rgw_list_buckets_max_chunk;
