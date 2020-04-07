@@ -90,6 +90,76 @@ I test if the setup is working fine or not by performing a write operation in RA
 ```
 You can then navigate to http://localhost:16686 to access the Jaeger UI.
 
+### [WIP] RGW tracing
+
+Can run a simple span test using the amazon S3 API.
+
+#### Pull the WIP branch
+```
+git clone https://github.com/ceph/ceph.git 
+cd ceph 
+git fetch
+git checkout wip-jaegertracing-in-rgw
+./install-deps.sh && ./do_cmake.sh
+cd build
+make vstart -j$(nproc)
+
+```
+#### Install AWS CLI
+
+1) Using pip to install aws CLI
+
+```
+sudo pip install --upgrade pip
+sudo pip install awscli
+sudo pip install awscli --upgrade
+```
+2) Using the bundeled installer
+
+```
+curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+unzip awscli-bundle.zip
+sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+```
+
+check the version using 
+
+```
+/usr/local/bin/aws --version
+```
+
+#### Configuring aws
+
+Run the commands in one of your Ceph cluster nodes with access to cluster for administration.
+
+```
+sudo radosgw-admin user create --uid="tester" --display-name="tester S3User
+```
+From the output, note the ```access-key``` and ```secret-key```. 
+
+Before you can start using AWS CLI tool to interact with AWS services, you need to configure it by running the aws configure command.
+
+```
+aws configure --profile=ceph
+```
+When promperd, enter the secret key and access key obtained in the prior step.
+
+You need to have the IP address of one of your Rados Gateway nodes or equivalent DNS name configured. Here, we assume a dummy rgw-server's URL to be http://172.21.148.53
+
+```
+aws --profile=ceph --endpoint=http://172.21.148.53 s3 mb s3://test_bucket
+```
+
+The above command will create a bucket called ```test_bucket```.
+
+To get a sample trace, just list all buckets using 
+
+```
+sudo radosgw-admin bucket list
+```
+
+You can then navigate to http://localhost:16686 to access the Jaeger UI.
+
 
 ## Optional Build from Source
 
